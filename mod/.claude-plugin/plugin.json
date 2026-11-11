@@ -1,0 +1,24 @@
+{
+  "name": "arc-tooltrail",
+  "version": "0.1.0",
+  "description": "Live pane of the skills, MCP servers, plugins and subagents a session used, with estimated cost per tool.",
+  "author": {
+    "name": "ARC Labs Studio"
+  },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "binary": {
+      "type": "string",
+      "title": "tooltrail binary",
+      "description": "Path to the tooltrail CLI, or a name on PATH.",
+      "default": "tooltrail"
+    },
+    "vault": {
+      "type": "string",
+      "title": "Obsidian vault",
+      "description": "Vault root for the Nota Obsidian button. Empty uses $TOOLTRAIL_VAULT.",
+      "default": ""
+    }
+  }
+}

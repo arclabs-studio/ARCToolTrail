@@ -1,0 +1,13 @@
+{
+  "name": "arclabs-tooltrail",
+  "description": "ARCToolTrail: Claude Code session tools monitor (per-tool usage and estimated cost).",
+  "owner": {
+    "name": "ARC Labs Studio"
+  },
+  "plugins": [
+    {
+      "name": "arc-tooltrail",
+      "source": "./mod"
+    }
+  ]
+}
