@@ -80,5 +80,3 @@ sdist/
 var/
 wheels/
 
-# tooltrail local output
-*.tooltrail.json
