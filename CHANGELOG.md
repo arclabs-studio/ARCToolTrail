@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1] - 2026-11-11
+
+### Fixed
+
+- `tooltrail` no longer crashes with `unable to find bundle named ARCToolTrail_ARCToolTrailCore`
+  when the binary is copied on its own, as the README's install step does. The price table is
+  now compiled into the binary instead of shipping as a resource bundle.
+
 ## [0.1.0] - 2026-11-11
 
 ### Added
@@ -20,4 +28,5 @@
   command, and buttons for the Obsidian note, JSON export and cleanup suggestions.
 - Plugin marketplace manifest (`.claude-plugin/marketplace.json`).
 
+[0.1.1]: https://github.com/arclabs-studio/ARCToolTrail/releases/tag/v0.1.1
 [0.1.0]: https://github.com/arclabs-studio/ARCToolTrail/releases/tag/v0.1.0

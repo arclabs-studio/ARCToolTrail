@@ -1,6 +1,6 @@
 {
   "name": "arc-tooltrail",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Live pane of the skills, MCP servers, plugins and subagents a session used, with estimated cost per tool.",
   "author": {
     "name": "ARC Labs Studio"

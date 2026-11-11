@@ -113,9 +113,10 @@ ARCToolTrail splits the cost with this rule:
 - A **subagent** gets its whole transcript's cost. Tools used inside a subagent are counted but
   carry no cost of their own, because the subagent already holds it.
 
-Tokens are priced with the bundled [`prices.json`](Sources/ARCToolTrailCore/Resources/prices.json)
-in USD per million tokens (Anthropic list prices as of 2026-11-03; the file's `asOf` and `source`
-fields say where they come from). Cache writes cost 1.25× input (5-minute TTL) and 2× input (1-hour TTL).
+Tokens are priced with the built-in table in
+[`BundledPrices.swift`](Sources/ARCToolTrailCore/Pricing/BundledPrices.swift), in USD per million
+tokens (Anthropic list prices as of 2026-11-03; the table's `asOf` and `source` fields say where
+they come from). Cache writes cost 1.25× input (5-minute TTL) and 2× input (1-hour TTL).
 When Claude Code has written a `cost-state` record (usually at the end of a session), each model's
 figures are scaled to match Claude Code's own cost for that model.
 
