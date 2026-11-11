@@ -16,8 +16,8 @@ It has two parts:
 - **`tooltrail`**: a Swift CLI over the `ARCToolTrailCore` library. It reads a session
   transcript and prints a text or JSON report, a statusline line, an Obsidian note or a JSON
   export.
-- **`arc-tooltrail`**: a Claude Code mod in `mod/` (TypeScript/TSX). It adds a live pane, a
-  status entry and the `/tooltrail` command. Every action shells out to the CLI.
+- **`arc-tooltrail`**: a Claude Code mod in `mod/` (TypeScript/TSX). It adds a live pane and the
+  `/tooltrail` command. Every action shells out to the CLI.
 
 The CLI works without the mod. The mod holds no parsing or cost logic.
 
@@ -157,6 +157,8 @@ These are the facts the code relies on. Read them before changing parsing or cos
   2 s.
 - `runCLI` must stay a top-level function taking `$`; `claude plugin validate` rejects `$`
   passed to a nested helper. `tool.call` hooks must stay non-gating.
+- The mod sets no status entry: the statusline line (`tooltrail statusline`) already shows
+  the costs, and both together repeat the same text.
 - The pane's view atom has a `shape` tag (`view-1`). Change the tag whenever `TrailView`
   changes.
 - In mod tests a throwing hook is skipped; simulate a failing `process.run` with `{ deny }`.

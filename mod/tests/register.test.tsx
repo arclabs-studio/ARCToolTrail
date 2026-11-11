@@ -38,7 +38,6 @@ function engine(on: On, cli: (argv: readonly string[]) => { exitCode: number; st
   on('session.id', () => ({ value: 'sid-1' }))
   on('command.register', () => ({ value: { command: 'tooltrail' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('ui.status', () => ({ value: undefined }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('process.run', (_, e) => {
     calls.push([...e.argv])
@@ -63,6 +62,20 @@ test('the pane groups the report by category after the first refresh', async ($,
     expect(await ui.find({ type: 'Text', text: /^Skills$/ })).toBeUndefined()
     await ui.unmount()
   }
+})
+
+test('a refresh leaves the status line alone (the statusline script shows the costs)', async ($, on) => {
+  const clock = mock.clock(on)
+  const statuses: unknown[] = []
+  on('ui.status', (_, e) => {
+    statuses.push(e)
+    return { value: undefined }
+  })
+  engine(on, () => ({ exitCode: 0, stdout: JSON.stringify(REPORT), stderr: '' }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await clock.advance(2000)
+
+  expect(statuses).toEqual([])
 })
 
 test('Exportar JSON runs the export command and shows where it wrote', async ($, on) => {
@@ -126,7 +139,6 @@ test('a binary that cannot start shows its error on the button press', async ($,
   const clock = mock.clock(on)
   on('session.id', () => ({ value: 'sid-1' }))
   on('command.register', () => ({ value: { command: 'tooltrail' } }))
-  on('ui.status', () => ({ value: undefined }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('process.run', (_, e) => {
     if (e.argv[1] === 'export') return { deny: 'spawn tooltrail ENOENT' }
