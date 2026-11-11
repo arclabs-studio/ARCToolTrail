@@ -28,8 +28,8 @@ It has two parts:
 
 - **`tooltrail`**: a Swift CLI that reads the session transcript (`~/.claude/projects/…/<session>.jsonl`
   and its `subagents/`) and prints a report, a statusline line, an Obsidian note or a JSON export.
-- **`arc-tooltrail`**: an optional Claude Code mod. It adds a live pane, a status entry and a
-  `/tooltrail` command. The pane's buttons call the CLI.
+- **`arc-tooltrail`**: an optional Claude Code mod. It adds a live pane and a `/tooltrail`
+  command. The pane's buttons call the CLI.
 
 The CLI and the statusline line work without the mod.
 
@@ -73,7 +73,7 @@ full path in `/config`.
 |---|---|
 | `tooltrail report --session <id>` | Text report. Add `--json` for JSON. `--transcript <path>` reads a file directly. |
 | `tooltrail statusline` | Reads Claude Code's statusline JSON on stdin and prints one line. |
-| `tooltrail note --session <id>` | Writes the report as a Markdown note in an Obsidian vault (`--vault`, or `$TOOLTRAIL_VAULT`), under `ToolTrail/`. |
+| `tooltrail note --session <id>` | Writes the report as a Markdown note in an Obsidian vault (`--vault`, or `$TOOLTRAIL_VAULT`; a leading `~/` is your home), under `ToolTrail/`. |
 | `tooltrail export --session <id>` | Writes the JSON report (default `~/.cache/tooltrail/exports/<id>.json`, or `--out`). |
 
 `tooltrail <command> --help` lists every option.
@@ -97,8 +97,8 @@ cached in `~/.cache/tooltrail/`, so a refresh takes a few tens of milliseconds.
   estimated cost. It refreshes after tool calls and turns.
 - **Nota Obsidian** writes the note, **Exportar JSON** writes the JSON file, and
   **Sugerir limpieza** lists configured MCP servers and plugins that the session never used.
-- The status entry shows the three most expensive tools. When the session ends, a summary line
-  is logged.
+- When the session ends, a summary line with the three most expensive tools is logged. For live
+  costs under the prompt, use the [statusline](#statusline) line.
 
 ## How the cost is estimated
 

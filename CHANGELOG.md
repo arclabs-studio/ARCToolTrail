@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.2] - 2026-11-11
+
+### Changed
+
+- `tooltrail note` resolves a leading `~/` in `--vault`, `$TOOLTRAIL_VAULT` and the mod's `vault`
+  option to your home directory, so one shared setting (`~/ObsidianVault`) works on every Mac.
+
+### Removed
+
+- The mod's status entry. It repeated what the `tooltrail statusline` line already shows, with
+  a doubled `arc-tooltrail: tooltrail:` prefix. The pane, `/tooltrail` and the session-end
+  summary are unchanged.
+
 ## [0.1.1] - 2026-11-11
 
 ### Fixed
@@ -28,5 +41,6 @@
   command, and buttons for the Obsidian note, JSON export and cleanup suggestions.
 - Plugin marketplace manifest (`.claude-plugin/marketplace.json`).
 
+[0.1.2]: https://github.com/arclabs-studio/ARCToolTrail/releases/tag/v0.1.2
 [0.1.1]: https://github.com/arclabs-studio/ARCToolTrail/releases/tag/v0.1.1
 [0.1.0]: https://github.com/arclabs-studio/ARCToolTrail/releases/tag/v0.1.0
