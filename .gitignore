@@ -1,0 +1,84 @@
+# macOS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Swift Package Manager
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# DocC
+*.doccarchive
+docs/
+
+# Code coverage
+*.profraw
+*.profdata
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Local development
+.local/
+.claude-code/
+.mcp.json
+
+# ARC Labs security — sensitive files
+*.key
+*.pem
+*.p12
+*.cer
+*secret*
+*password*
+*credentials*
+*.mobileprovision
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.uv/
+*.egg-info/
+*.egg
+.installed.cfg
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+
+# tooltrail local output
+*.tooltrail.json
