@@ -52,13 +52,12 @@ ARCToolTrail/
 │   │   ├── Parsing/                  TranscriptParser, Record* DTOs, SessionLoader (cache)
 │   │   ├── Classification/           ToolClassifier
 │   │   ├── Attribution/              CostAttributor
-│   │   ├── Pricing/                  PriceTable, ModelPrice
+│   │   ├── Pricing/                  PriceTable, ModelPrice, BundledPrices (built-in table)
 │   │   ├── Report/                   ReportBuilder, Tally, Pricing, ReportRequest
 │   │   ├── Cleanup/                  ConfigInventory (~/.claude.json, settings.json)
 │   │   ├── Session/                  SessionLocator (+ error)
 │   │   ├── Files/                    ReportFiles (note name, default export path)
-│   │   ├── Rendering/                Text, Statusline, MarkdownNote, ReportJSON
-│   │   └── Resources/prices.json     bundled price table
+│   │   └── Rendering/                Text, Statusline, MarkdownNote, ReportJSON
 │   └── tooltrail/                    @main CLI: report, statusline, note, export
 ├── Tests/ARCToolTrailCoreTests/
 │   ├── Support/                      fixture loading, SampleSession builders
@@ -129,8 +128,10 @@ These are the facts the code relies on. Read them before changing parsing or cos
 - Cache reads are never attributed, so the attributed total is always below the session total.
 - A subagent's whole transcript cost goes to its `Agent` tool use; tools inside it are counted
   but carry no cost.
-- Prices come from `Resources/prices.json` (USD per million tokens, with `asOf` and `source`),
-  overridable by `~/.config/tooltrail/prices.json`. Cache writes cost 1.25× input (5 min TTL)
+- Prices come from `Pricing/BundledPrices.swift`, a JSON table in a raw string (USD per million
+  tokens, with `asOf` and `source`), overridable by `~/.config/tooltrail/prices.json`. It is
+  compiled in, not a resource, so the binary is one self-contained file: do not move it back into
+  a resource bundle. Cache writes cost 1.25× input (5 min TTL)
   and 2× input (1 h TTL). Model names are normalised (`anthropic.` prefix, `[1m]` suffix,
   `-YYYYMMDD` date).
 - When a `cost-state` record exists, each model's estimate is scaled to Claude Code's own cost

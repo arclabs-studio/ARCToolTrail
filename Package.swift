@@ -26,8 +26,7 @@ let package = Package(name: "ARCToolTrail",
 
                       // MARK: - Targets
 
-                      targets: [.target(name: "ARCToolTrailCore",
-                                        resources: [.process("Resources")]),
+                      targets: [.target(name: "ARCToolTrailCore"),
                                 .executableTarget(name: "tooltrail",
                                                   dependencies: ["ARCToolTrailCore",
                                                                  .product(name: "ArgumentParser",

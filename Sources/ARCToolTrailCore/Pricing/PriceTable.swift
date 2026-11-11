@@ -9,7 +9,7 @@ import Foundation
 
 /// Model prices used to turn tokens into an approximate USD cost.
 ///
-/// The bundled `prices.json` can be overridden per model by a JSON file of the same shape
+/// The bundled table (``BundledPrices``) can be overridden per model by a JSON file of the same shape
 /// (default `~/.config/tooltrail/prices.json`). Model ids are matched after normalisation:
 /// an `anthropic.` prefix, a `[1m]` suffix and a `-YYYYMMDD` date suffix are ignored.
 public struct PriceTable: Hashable, Codable, Sendable {
@@ -19,12 +19,9 @@ public struct PriceTable: Hashable, Codable, Sendable {
         self.models = models
     }
 
-    /// The table shipped with the package.
+    /// The table compiled into the package (``BundledPrices``).
     public static func bundled() throws -> PriceTable {
-        guard let url = Bundle.module.url(forResource: "prices", withExtension: "json") else {
-            throw CocoaError(.fileNoSuchFile)
-        }
-        return try JSONDecoder().decode(PriceTable.self, from: Data(contentsOf: url))
+        try JSONDecoder().decode(PriceTable.self, from: Data(BundledPrices.json.utf8))
     }
 
     /// The bundled table with every model in `override` replacing or adding to it.
