@@ -16,7 +16,7 @@ struct NoteCommand: AsyncParsableCommand {
 
     @OptionGroup var options: SessionOptions
 
-    @Option(help: "Vault root (default: $TOOLTRAIL_VAULT).") var vault: String?
+    @Option(help: "Vault root; a leading ~/ is your home (default: $TOOLTRAIL_VAULT).") var vault: String?
 
     @Option(help: "Folder inside the vault.") var folder = "ToolTrail"
 
@@ -25,7 +25,8 @@ struct NoteCommand: AsyncParsableCommand {
             throw ToolTrailCLIError.missingVault
         }
         let report = try options.buildReport()
-        let directory = URL(filePath: root).appending(path: folder)
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let directory = ReportFiles.vaultURL(root, home: home).appending(path: folder)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appending(path: ReportFiles.noteFileName(for: report))
         try MarkdownNoteRenderer.render(report).write(to: file, atomically: true, encoding: .utf8)

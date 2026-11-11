@@ -73,7 +73,7 @@ full path in `/config`.
 |---|---|
 | `tooltrail report --session <id>` | Text report. Add `--json` for JSON. `--transcript <path>` reads a file directly. |
 | `tooltrail statusline` | Reads Claude Code's statusline JSON on stdin and prints one line. |
-| `tooltrail note --session <id>` | Writes the report as a Markdown note in an Obsidian vault (`--vault`, or `$TOOLTRAIL_VAULT`), under `ToolTrail/`. |
+| `tooltrail note --session <id>` | Writes the report as a Markdown note in an Obsidian vault (`--vault`, or `$TOOLTRAIL_VAULT`; a leading `~/` is your home), under `ToolTrail/`. |
 | `tooltrail export --session <id>` | Writes the JSON report (default `~/.cache/tooltrail/exports/<id>.json`, or `--out`). |
 
 `tooltrail <command> --help` lists every option.

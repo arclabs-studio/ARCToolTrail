@@ -48,4 +48,26 @@ struct ReportFilesTests {
         // Then
         #expect(url.path(percentEncoded: false) == "/tmp/tooltrail-cache/exports/abc.json")
     }
+
+    @Test("A vault path starting with ~/ is resolved in the home directory", .tags(.unit)) func vaultTilde() {
+        // Given a home directory
+        let home = URL(filePath: "/Users/someone", directoryHint: .isDirectory)
+
+        // When resolving a ~/ vault path
+        let url = ReportFiles.vaultURL("~/ObsidianVault", home: home)
+
+        // Then
+        #expect(url.path(percentEncoded: false) == "/Users/someone/ObsidianVault")
+    }
+
+    @Test("A bare ~ is the home directory", .tags(.unit)) func vaultBareTilde() {
+        let home = URL(filePath: "/Users/someone", directoryHint: .isDirectory)
+        #expect(ReportFiles.vaultURL("~", home: home).path(percentEncoded: false) == "/Users/someone/")
+    }
+
+    @Test("Absolute paths and a ~ later in the path are used as given", .tags(.unit)) func vaultUnchanged() {
+        let home = URL(filePath: "/Users/someone", directoryHint: .isDirectory)
+        #expect(ReportFiles.vaultURL("/Volumes/Notes", home: home).path(percentEncoded: false) == "/Volumes/Notes")
+        #expect(ReportFiles.vaultURL("/tmp/~/v", home: home).path(percentEncoded: false) == "/tmp/~/v")
+    }
 }

@@ -17,7 +17,7 @@
     "vault": {
       "type": "string",
       "title": "Obsidian vault",
-      "description": "Vault root for the Nota Obsidian button. Empty uses $TOOLTRAIL_VAULT.",
+      "description": "Vault root for the Nota Obsidian button; a leading ~/ is your home. Empty uses $TOOLTRAIL_VAULT.",
       "default": ""
     }
   }
