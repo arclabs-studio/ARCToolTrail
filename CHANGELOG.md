@@ -2,6 +2,11 @@
 
 ## [0.1.2] - 2026-11-11
 
+### Changed
+
+- `tooltrail note` resolves a leading `~/` in `--vault`, `$TOOLTRAIL_VAULT` and the mod's `vault`
+  option to your home directory, so one shared setting (`~/ObsidianVault`) works on every Mac.
+
 ### Removed
 
 - The mod's status entry. It repeated what the `tooltrail statusline` line already shows, with
