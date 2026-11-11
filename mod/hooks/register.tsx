@@ -30,7 +30,7 @@ export function formatCost(usd: number | undefined): string {
   return `$${usd.toFixed(2)}`
 }
 
-/** Short statusline text: top three items by cost. */
+/** One-line summary for the session-end log: top three items by cost. */
 export function summarize(report: TrailReport): string {
   if (report.items.length === 0) return 'tooltrail: no tools yet'
   const top = [...report.items]
@@ -87,7 +87,6 @@ export const register: Register = (on, options) => {
         } else {
           const report = JSON.parse(run.stdout) as TrailReport
           await update($, view, state => ({ ...state, report, message: '' }))
-          $.ui.status(summarize(report))
         }
       } catch (error) {
         await fail(describe(error))
