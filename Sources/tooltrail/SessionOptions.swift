@@ -18,7 +18,7 @@ struct SessionOptions: ParsableArguments {
     @Option(help: "Claude Code projects directory.")
     var projectsDir: String = URL.homeDirectory.appending(path: ".claude/projects").path(percentEncoded: false)
 
-    @Option(help: "Price override file (same shape as the bundled prices.json).")
+    @Option(help: "Price override file (same JSON shape as the built-in table).")
     var prices: String = URL.homeDirectory.appending(path: ".config/tooltrail/prices.json").path(percentEncoded: false)
 
     @Option(help: "Directory for the incremental parse cache.")
