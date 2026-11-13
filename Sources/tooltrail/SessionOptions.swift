@@ -21,7 +21,7 @@ struct SessionOptions: ParsableArguments {
     @Option(help: "Price override file (same JSON shape as the built-in table).")
     var prices: String = URL.homeDirectory.appending(path: ".config/tooltrail/prices.json").path(percentEncoded: false)
 
-    @Option(help: "Directory for the incremental parse cache.")
+    @Option(help: "Directory for the incremental parse cache and the rate-limit window baselines.")
     var cacheDir: String = URL.homeDirectory.appending(path: ".cache/tooltrail").path(percentEncoded: false)
 
     @Flag(help: "Parse the whole transcript without the cache.") var noCache = false
@@ -57,6 +57,7 @@ struct SessionOptions: ParsableArguments {
                           claudeJSON: URL(filePath: claudeJson),
                           settingsJSON: URL(filePath: settings),
                           projectPath: project ?? FileManager.default.currentDirectoryPath,
-                          loadedList: loaded.map { URL(filePath: $0) }).run()
+                          loadedList: loaded.map { URL(filePath: $0) },
+                          windowsDirectory: URL(filePath: cacheDir)).run()
     }
 }

@@ -13,11 +13,18 @@ public struct ParsedSession: Hashable, Codable, Sendable {
     public let subagents: [SubagentThread]
     /// Last `cost-state` record, if Claude Code wrote one yet.
     public let costState: CostState?
+    /// Index into `calls` of the first call after each `compact_boundary` record, ascending.
+    public let compactions: [Int]
 
-    public init(sessionId: String, calls: [APICall], subagents: [SubagentThread], costState: CostState?) {
+    public init(sessionId: String,
+                calls: [APICall],
+                subagents: [SubagentThread],
+                costState: CostState?,
+                compactions: [Int] = []) {
         self.sessionId = sessionId
         self.calls = calls
         self.subagents = subagents
         self.costState = costState
+        self.compactions = compactions
     }
 }

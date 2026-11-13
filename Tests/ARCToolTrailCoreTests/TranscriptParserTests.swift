@@ -44,6 +44,54 @@ struct TranscriptParserTests {
         #expect(sut.byteOffset == bytes.count)
     }
 
+    @Test("Fixture: compact_boundary before msg_D is recorded as call index 3", .tags(.unit, .critical))
+    func fixtureCompactions() throws {
+        // Given the fixture (compact_boundary record sits between msg_C's tool results and msg_D)
+        var sut = makeSUT()
+
+        // When consuming it whole
+        try sut.consume(Fixtures.transcriptData())
+
+        // Then the boundary points at the index of the first call after it
+        #expect(sut.compactions == [3])
+    }
+
+    @Test("Each compact_boundary appends the call count at that moment; other system records do not",
+          .tags(.unit, .critical)) func compactionsTrackCallCount() {
+        // Given a boundary before any call, one after the first call, a non-boundary system record, and a
+        // boundary after the second call
+        var sut = makeSUT()
+        let boundary = #"{"type":"system","subtype":"compact_boundary","sessionId":"s-1"}"#
+        let other = #"{"type":"system","subtype":"informational","sessionId":"s-1"}"#
+        let text = [boundary,
+                    assistantLine(id: "m1", usage: #"{"input_tokens":1,"output_tokens":1}"#),
+                    boundary,
+                    other,
+                    assistantLine(id: "m2", usage: #"{"input_tokens":1,"output_tokens":1}"#, seconds: 2),
+                    boundary].joined(separator: "\n") + "\n"
+
+        // When consuming
+        sut.consume(data(text))
+
+        // Then the boundaries sit at 0, 1 and 2
+        #expect(sut.compactions == [0, 1, 2])
+    }
+
+    @Test("Compactions survive incremental consumption split around the boundary line", .tags(.unit, .critical),
+          arguments: [14, 15]) func compactionsAcrossIncrementalConsume(linesFirst: Int) throws {
+        // Given the fixture; line 15 is the compact_boundary, so 14 lines stop before it and 15 end with it
+        let bytes = try Fixtures.transcriptData()
+        var sut = makeSUT()
+
+        // When consuming the first lines, then the rest from the parser's byteOffset
+        sut.consume(firstLines(bytes, count: linesFirst))
+        sut.consume(bytes.subdata(in: sut.byteOffset ..< bytes.count))
+
+        // Then the boundary is recorded exactly once, pointing at msg_D
+        #expect(sut.compactions == [3])
+        #expect(sut.calls == SampleSession.mainCalls)
+    }
+
     @Test("Usage repeated across records is counted once", .tags(.unit, .critical)) func usageCountedOnce() throws {
         // Given msg_A, which appears in two records with identical usage (output 400)
         var sut = makeSUT()

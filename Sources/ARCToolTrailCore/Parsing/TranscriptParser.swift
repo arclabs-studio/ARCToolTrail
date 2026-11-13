@@ -22,6 +22,8 @@ public struct TranscriptParser: Hashable, Codable, Sendable {
     public private(set) var calls: [APICall] = []
     /// Last `cost-state` record seen.
     public private(set) var costState: CostState?
+    /// `calls.count` at each `compact_boundary` record: the index of the first call after it.
+    public private(set) var compactions: [Int] = []
     /// `sessionId` of the first record that carries one.
     public private(set) var sessionId: String?
 
@@ -47,14 +49,16 @@ public struct TranscriptParser: Hashable, Codable, Sendable {
     private static let newline = UInt8(ascii: "\n")
     private static let assistantMarker = Data(#""type":"assistant""#.utf8)
     private static let costStateMarker = Data(#""type":"cost-state""#.utf8)
+    private static let compactMarker = Data(#""subtype":"compact_boundary""#.utf8)
     private static let fractionalDate = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
     private static let plainDate = Date.ISO8601FormatStyle()
 
     private mutating func consumeLine(_ line: Data) {
         let isAssistant = line.range(of: Self.assistantMarker) != nil
         let isCostState = line.range(of: Self.costStateMarker) != nil
-        guard isAssistant || isCostState || sessionId == nil, let record = try? JSONDecoder().decode(Record.self,
-                                                                                                     from: line) else {
+        let isCompaction = line.range(of: Self.compactMarker) != nil
+        guard isAssistant || isCostState || isCompaction || sessionId == nil,
+              let record = try? JSONDecoder().decode(Record.self, from: line) else {
             return
         }
         if sessionId == nil {
@@ -70,6 +74,8 @@ public struct TranscriptParser: Hashable, Codable, Sendable {
                 let byModel = (record.modelUsage ?? [:]).compactMapValues(\.costUSD)
                 costState = CostState(totalCostUSD: total, costByModel: byModel)
             }
+        case "system" where record.subtype == "compact_boundary":
+            compactions.append(calls.count)
         default:
             break
         }

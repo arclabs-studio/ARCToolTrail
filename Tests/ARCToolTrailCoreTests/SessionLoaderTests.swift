@@ -51,6 +51,7 @@ struct SessionLoaderTests {
         #expect(session.sessionId == "00000000-0000-4000-8000-000000000001")
         #expect(session.calls == SampleSession.mainCalls)
         #expect(session.costState == SampleSession.costState)
+        #expect(session.compactions == [3])
     }
 
     @Test("Links the subagent thread to its launching tool use", .tags(.integration,

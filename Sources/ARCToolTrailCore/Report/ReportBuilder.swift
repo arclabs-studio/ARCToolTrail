@@ -9,16 +9,21 @@ import Foundation
 
 /// Builds a `SessionReport` from a parsed session.
 ///
-/// - Main-thread tool uses are attributed with `CostAttributor`.
-/// - A subagent's whole cost (every token of its calls) goes to the `.subagent` item of the `Agent`
-///   tool use that launched it (matched by `parentToolUseId`; unmatched threads use `agentType`,
-///   default `general-purpose`, and count one use).
+/// - Main-thread tool uses are attributed with `CostAttributor`, with the session's compactions.
+/// - A subagent's tokens (every token of its calls except cache reads) go to the `.subagent` item of
+///   the `Agent` tool use that launched it (matched by `parentToolUseId`; unmatched threads use
+///   `agentType`, default `general-purpose`, and count one use). Its cache reads go to that item's
+///   `contextCarry`, as the main thread's cache reads are never attributed either.
 /// - Tool uses inside subagents count towards `uses` and `usesInSubagents` of their own item but
 ///   carry no cost (it is already in the subagent item).
 /// - USD = price-table cost per model. With a `cost-state`, each model's figures are scaled by
 ///   `costState.costByModel[model] / priceTableCost(all calls of that model)`.
 /// - `sessionCostUSD` = `costState.totalCostUSD`, else the price-table cost of all calls.
 /// - `cleanup` = inventory servers and plugins that no item uses.
+/// - Weighted units (``TokenWeights``): `sessionWeighted` covers every call; each item's
+///   `sessionShare = weighted / sessionWeighted`. With a `WindowBaseline`, each item's
+///   `windowPoints = windowDelta × sessionShare` and `liveContextShare = liveContextTokens /
+///   contextWindowSize`.
 public struct ReportBuilder: Sendable {
     public let prices: PriceTable
 
@@ -28,12 +33,11 @@ public struct ReportBuilder: Sendable {
 
     public func build(_ session: ParsedSession,
                       inventory: ConfigInventory? = nil,
+                      windows: WindowBaseline? = nil,
                       now: Date = .now) -> SessionReport {
         var tally = Tally()
-        for attribution in CostAttributor.attribute(session.calls) {
-            tally.record(ToolClassifier.identity(for: attribution.toolUse),
-                         at: attribution.timestamp,
-                         tokens: attribution.tokensByModel)
+        for attribution in CostAttributor.attribute(session.calls, compactions: session.compactions) {
+            tally.record(attribution)
         }
         let agentUses = Dictionary((session.calls + session.subagents.flatMap(\.calls))
             .flatMap(\.toolUses)
@@ -45,12 +49,24 @@ public struct ReportBuilder: Sendable {
 
         let allCalls = session.calls + session.subagents.flatMap(\.calls)
         let pricing = Pricing(calls: allCalls, prices: prices, costState: session.costState)
-        let priced = tally.items.map { entry in
+        let sessionTokens = allCalls.reduce(TokenUsage.zero) { $0 + $1.usage }
+        let sessionWeighted = allCalls.reduce(0) {
+            $0 + TokenWeights.units(of: $1.usage, model: $1.model, prices: prices)
+        }
+        let windowDelta = windows?.delta
+        let contextWindowSize = windows?.contextWindowSize
+        let measured = tally.items.map { entry in
             var item = entry.item
             item.estimatedCostUSD = pricing.cost(of: entry.tokensByModel)
+            item.weighted = TokenWeights.units(of: entry.tokensByModel, prices: prices)
+            item.sessionShare = sessionWeighted > 0 ? item.weighted / sessionWeighted : 0
+            item.weightedPerUse = Self.perUse(item)
+            item.windowPoints = windowDelta?.scaled(by: item.sessionShare)
+            item.liveContextShare = contextWindowSize
+                .flatMap { $0 > 0 ? item.liveContextTokens / Double($0) : nil }
             return item
         }
-        let items = priced.sorted(by: Self.reportOrder)
+        let items = measured.sorted(by: Self.reportOrder)
 
         let attributed = pricing.source == .unavailable ? nil : items.compactMap(\.estimatedCostUSD).reduce(0, +)
         return SessionReport(sessionId: session.sessionId,
@@ -59,22 +75,32 @@ public struct ReportBuilder: Sendable {
                              sessionCostUSD: pricing.sessionCost,
                              attributedCostUSD: attributed,
                              costSource: pricing.source,
-                             cleanup: Self.cleanup(items: items, inventory: inventory))
+                             cleanup: Self.cleanup(items: items, inventory: inventory),
+                             sessionTokens: sessionTokens,
+                             sessionWeighted: sessionWeighted,
+                             attributedWeighted: items.reduce(0) { $0 + $1.weighted },
+                             windowDelta: windowDelta,
+                             contextWindowSize: contextWindowSize)
     }
 
     // MARK: - Private
 
-    /// Category, then estimated cost (highest first, unknown last), then name.
+    /// Category, then weighted units (highest first), then name.
     private static func reportOrder(_ lhs: ReportItem, _ rhs: ReportItem) -> Bool {
         if lhs.identity.category != rhs.identity.category {
             return lhs.identity.category < rhs.identity.category
         }
-        let lhsCost = lhs.estimatedCostUSD ?? -1
-        let rhsCost = rhs.estimatedCostUSD ?? -1
-        if lhsCost != rhsCost {
-            return lhsCost > rhsCost
+        if lhs.weighted != rhs.weighted {
+            return lhs.weighted > rhs.weighted
         }
         return lhs.identity.name < rhs.identity.name
+    }
+
+    /// `weighted` over the uses made outside subagents, or over every use when all were inside one.
+    private static func perUse(_ item: ReportItem) -> Double {
+        let outside = item.uses - item.usesInSubagents
+        let divisor = outside > 0 ? outside : item.uses
+        return divisor > 0 ? item.weighted / Double(divisor) : 0
     }
 
     private static func cleanup(items: [ReportItem], inventory: ConfigInventory?) -> [CleanupCandidate] {

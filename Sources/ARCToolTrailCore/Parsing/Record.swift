@@ -8,6 +8,7 @@
 /// The fields tooltrail reads from one transcript line. Everything else is ignored.
 struct Record: Decodable {
     let type: String?
+    let subtype: String?
     let sessionId: String?
     let timestamp: String?
     let message: RecordMessage?

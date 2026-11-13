@@ -1,5 +1,16 @@
 export type TrailCategory = 'skill' | 'mcp' | 'plugin' | 'subagent' | 'builtin'
 
+export type TrailTokens = {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite5m: number
+  cacheWrite1h: number
+}
+
+/** Percentage points of the 5-hour and 7-day rate-limit windows. */
+export type TrailWindows = { fiveHour?: number; sevenDay?: number }
+
 export type TrailItem = {
   identity: {
     category: TrailCategory
@@ -12,7 +23,20 @@ export type TrailItem = {
   usesInSubagents: number
   firstUse?: string
   lastUse?: string
+  attributedTokens: TrailTokens
   estimatedCostUSD?: number
+  /** Attributed tokens in price-weighted units (1 = one input token). */
+  weighted: number
+  /** weighted / sessionWeighted. */
+  sessionShare: number
+  weightedPerUse: number
+  /** Raw tokens later calls re-read because of this tool's results. */
+  contextCarry: number
+  liveContextTokens: number
+  /** Share of the context window this tool added since the last compaction. */
+  liveContextShare?: number
+  /** Estimated window points (session window use × sessionShare). */
+  windowPoints?: TrailWindows
 }
 
 export type TrailCleanup = { kind: 'mcpServer' | 'plugin'; name: string }
@@ -26,6 +50,12 @@ export type TrailReport = {
   attributedCostUSD?: number
   costSource: 'costState' | 'priceTable' | 'unavailable'
   cleanup: TrailCleanup[]
+  sessionTokens: TrailTokens
+  sessionWeighted: number
+  attributedWeighted: number
+  /** Window points used while the session ran (parallel sessions included). */
+  windowDelta?: TrailWindows
+  contextWindowSize?: number
 }
 
 export type TrailView = {

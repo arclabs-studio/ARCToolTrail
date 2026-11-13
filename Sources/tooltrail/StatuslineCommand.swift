@@ -26,6 +26,8 @@ struct StatuslineCommand: AsyncParsableCommand {
         options.transcript = options.transcript ?? input.transcriptPath
         options.session = options.session ?? input.sessionId
         options.project = options.project ?? input.cwd
+        // Only the statusline sees rate_limits; a baseline that cannot be saved only loses the window figures.
+        try? WindowBaseline.record(input, in: URL(filePath: options.cacheDir))
         try print(StatuslineRenderer.render(options.buildReport(), limit: limit))
     }
 }

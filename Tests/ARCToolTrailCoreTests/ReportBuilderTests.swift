@@ -32,13 +32,24 @@ struct ReportBuilderTests {
     //   0.00052 + 0.026 + 0.0034 + 0.012 + 0.032                              = 0.07392
     // Subagent (sonnet; in 10, out 800, read 1000, 5m 1000)                    = 0.01062
     // Session price-table total = 0.07392 + 0.01062                            = 0.08454
-    // Explore item = B1 share + whole subagent                                 = 0.01008 + 0.01062 = 0.0207
-    // Attributed (price table) = 0.05848 + 0.01062                             = 0.0691
+    // Agent consistency (token-share spec): the Explore item is priced WITHOUT the thread's cache reads,
+    // which move to its contextCarry. Sonnet part priced = (in 10, out 800, 5m 1000) = 0.00002 + 0.008 + 0.0025
+    // = 0.01052 (it was 0.01062 when cache reads were included).
+    // Explore item = B1 share + sonnet part                                    = 0.01008 + 0.01052 = 0.0206
+    // Attributed (price table) = 0.05848 + 0.01052                             = 0.069
     //
-    // Cost-state scaling: opus factor = 0.15 / 0.07392 (~2.029221); sonnet factor = 0.05 / 0.01062,
-    // so the whole subagent scales to exactly 0.05.
+    // Cost-state scaling: opus factor = 0.15 / 0.07392 (~2.029221); sonnet factor = 0.05 / 0.01062
+    // (whole-model cost, unchanged), so the Explore sonnet part scales to 0.01052 x (0.05 / 0.01062).
+    //
+    // Weighted units (opus and sonnet both: out 5x, read 0.05x, 5m 1.25x, 1h 2x):
+    //   firecrawl 20 + 2000 + 6000 = 8020 · plugin-authoring 20 + 1500 + 1000 = 2520
+    //   Explore 2520 + (10 + 4000 + 1250 = 5260) = 7780 · Bash = slack = 30 + 500 + 250 = 780 · Read 0
+    //   session: opus main 130 + 6500 + 850 + 3000 + 8000 = 18480; sonnet sub 10 + 4000 + 50 + 1250 = 5310
+    //   sessionWeighted = 23790 · attributedWeighted = 8020 + 2520 + 7780 + 780 + 780 = 19880
 
     private static let opusFactor = 0.15 / 0.07392
+    private static let sonnetFactor = 0.05 / 0.01062
+    private static let sonnetPart = 0.01052 * sonnetFactor
 
     // MARK: - Items and categories
 
@@ -103,9 +114,9 @@ struct ReportBuilderTests {
         // When looking at Explore
         let explore = try item("Explore", in: .subagent, of: report)
 
-        // Then tokens = B1 share (in 20, out 300, 1h 500) + every subagent token
-        // (in 10, out 800, read 1000, 5m 1000)
-        #expect(explore.attributedTokens == TokenUsage(input: 30, output: 1100, cacheRead: 1000,
+        // Then tokens = B1 share (in 20, out 300, 1h 500) + subagent tokens WITHOUT cache reads
+        // (in 10, out 800, 5m 1000); the thread's 1000 cache reads moved to contextCarry (spec change)
+        #expect(explore.attributedTokens == TokenUsage(input: 30, output: 1100, cacheRead: 0,
                                                        cacheWrite5m: 1000, cacheWrite1h: 500))
         #expect(explore.uses == 1)
     }
@@ -123,11 +134,11 @@ struct ReportBuilderTests {
         // Then source and totals follow the hand oracle
         #expect(report.costSource == .priceTable)
         #expect(isClose(report.sessionCostUSD, to: 0.08454))
-        #expect(isClose(report.attributedCostUSD, to: 0.0691))
+        #expect(isClose(report.attributedCostUSD, to: 0.069))
         #expect(try isClose(item("firecrawl", in: .mcp, of: report).estimatedCostUSD, to: 0.03208))
         #expect(try isClose(item("plugin-authoring", in: .skill, of: report).estimatedCostUSD, to: 0.01008))
         #expect(try isClose(item("slack:slack", in: .plugin, of: report).estimatedCostUSD, to: 0.00312))
-        #expect(try isClose(item("Explore", in: .subagent, of: report).estimatedCostUSD, to: 0.0207))
+        #expect(try isClose(item("Explore", in: .subagent, of: report).estimatedCostUSD, to: 0.0206))
         #expect(try isClose(item("Bash", in: .builtin, of: report).estimatedCostUSD, to: 0.00312))
     }
 
@@ -141,7 +152,7 @@ struct ReportBuilderTests {
         // When building
         let report = sut.build(SampleSession.make(), now: now)
 
-        // Then opus items are price-table cost x (0.15 / 0.07392); the subagent's sonnet part is exactly 0.05
+        // Then opus items are price-table cost x (0.15 / 0.07392); the sonnet part is 0.01052 x (0.05 / 0.01062)
         #expect(report.costSource == .costState)
         #expect(try isClose(item("firecrawl", in: .mcp, of: report).estimatedCostUSD,
                             to: 0.03208 * Self.opusFactor))
@@ -152,7 +163,7 @@ struct ReportBuilderTests {
         #expect(try isClose(item("Bash", in: .builtin, of: report).estimatedCostUSD,
                             to: 0.00312 * Self.opusFactor))
         #expect(try isClose(item("Explore", in: .subagent, of: report).estimatedCostUSD,
-                            to: 0.01008 * Self.opusFactor + 0.05))
+                            to: 0.01008 * Self.opusFactor + Self.sonnetPart))
     }
 
     @Test("With cost-state, session cost is the reported total and attribution never exceeds it",
@@ -164,9 +175,9 @@ struct ReportBuilderTests {
         // When building
         let report = sut.build(SampleSession.make(), now: now)
 
-        // Then session = 0.2; attributed = 0.05848 x opusFactor + 0.05 (~0.16867) = sum of item costs <= 0.2
+        // Then session = 0.2; attributed = 0.05848 x opusFactor + sonnet part (~0.16820) = sum of items <= 0.2
         #expect(isClose(report.sessionCostUSD, to: 0.2))
-        #expect(isClose(report.attributedCostUSD, to: 0.05848 * Self.opusFactor + 0.05))
+        #expect(isClose(report.attributedCostUSD, to: 0.05848 * Self.opusFactor + Self.sonnetPart))
         let sum = report.items.reduce(0) { $0 + ($1.estimatedCostUSD ?? 0) }
         #expect(isClose(report.attributedCostUSD, to: sum))
         let attributed = try #require(report.attributedCostUSD)
@@ -305,9 +316,9 @@ struct ReportBuilderTests {
         // Then the same hand-computed numbers hold
         #expect(report.costSource == .costState)
         #expect(isClose(report.sessionCostUSD, to: 0.2))
-        #expect(isClose(report.attributedCostUSD, to: 0.05848 * Self.opusFactor + 0.05))
+        #expect(isClose(report.attributedCostUSD, to: 0.05848 * Self.opusFactor + Self.sonnetPart))
         #expect(try isClose(item("Explore", in: .subagent, of: report).estimatedCostUSD,
-                            to: 0.01008 * Self.opusFactor + 0.05))
+                            to: 0.01008 * Self.opusFactor + Self.sonnetPart))
         let read = try item("Read", in: .builtin, of: report)
         #expect(read.usesInSubagents == 1)
     }

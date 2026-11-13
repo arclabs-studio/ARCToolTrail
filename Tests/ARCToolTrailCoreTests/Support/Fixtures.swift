@@ -30,6 +30,16 @@ enum Fixtures {
     }
 }
 
+extension Fixtures {
+    /// `Fixtures/statusline-input.json`: a synthetic statusline payload for the fixture session.
+    static func statuslineInputData() throws -> Data {
+        guard let root = Bundle.module.url(forResource: "Fixtures", withExtension: nil) else {
+            throw FixtureError.missing("Fixtures")
+        }
+        return try Data(contentsOf: root.appending(path: "statusline-input.json"))
+    }
+}
+
 /// A scratch directory under the system temporary directory. Call `remove()` in a `defer`.
 struct TempDirectory {
     let url: URL

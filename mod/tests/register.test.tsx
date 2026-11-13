@@ -1,8 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { formatCost, summarize } from '../hooks/register'
-import type { TrailReport } from '../types'
+import { describeTotals, formatPoints, formatShare, formatUnits, formatWindows, summarize } from '../hooks/register'
+import type { TrailItem, TrailReport } from '../types'
 
 const PANE = {
   plugin: 'arc-tooltrail',
@@ -18,18 +18,43 @@ const PANE = {
   },
 } as const
 
+const NO_TOKENS = { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 }
+
+/** An item whose window points are its share of the session's 5h +2.0 / 7d +0.5 pp. */
+function item(identity: TrailItem['identity'], uses: number, weighted: number, contextCarry: number): TrailItem {
+  const sessionShare = weighted / 20000
+  return {
+    identity,
+    uses,
+    usesInSubagents: 0,
+    attributedTokens: NO_TOKENS,
+    estimatedCostUSD: 0.3,
+    weighted,
+    sessionShare,
+    weightedPerUse: weighted / uses,
+    contextCarry,
+    liveContextTokens: 0,
+    windowPoints: { fiveHour: 2 * sessionShare, sevenDay: 0.5 * sessionShare },
+  }
+}
+
+// Session 20000 units; firecrawl 20%, Explore 50%, Bash 0.3%; attributed 15000 of 20000 = 75%.
 const REPORT: TrailReport = {
   sessionId: 'sid-1',
   generatedAt: '2026-11-11T09:00:00Z',
   items: [
-    { identity: { category: 'mcp', name: 'firecrawl', server: 'firecrawl', isConnector: false }, uses: 6, usesInSubagents: 0, estimatedCostUSD: 0.3 },
-    { identity: { category: 'subagent', name: 'Explore', isConnector: false }, uses: 1, usesInSubagents: 0, estimatedCostUSD: 0.8 },
-    { identity: { category: 'builtin', name: 'Bash', isConnector: false }, uses: 4, usesInSubagents: 0, estimatedCostUSD: 0.004 },
+    item({ category: 'mcp', name: 'firecrawl', server: 'firecrawl', isConnector: false }, 6, 4000, 6040),
+    item({ category: 'subagent', name: 'Explore', isConnector: false }, 1, 10000, 0),
+    item({ category: 'builtin', name: 'Bash', isConnector: false }, 4, 60, 0),
   ],
   sessionCostUSD: 1.97,
   attributedCostUSD: 1.104,
   costSource: 'costState',
   cleanup: [{ kind: 'mcpServer', name: 'revenuecat' }],
+  sessionTokens: NO_TOKENS,
+  sessionWeighted: 20000,
+  attributedWeighted: 15000,
+  windowDelta: { fiveHour: 2, sevenDay: 0.5 },
 }
 
 /** Stands for the engine: session id, command registry, pane placement and the CLI. */
@@ -57,8 +82,13 @@ test('the pane groups the report by category after the first refresh', async ($,
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect((await ui.find({ type: 'Text', text: /^MCP$/ }))?.text).toBe('MCP')
-    expect((await ui.find({ type: 'Text', text: /firecrawl/ }))?.text).toBe('  firecrawl ×6 $0.30')
-    expect((await ui.find({ type: 'Text', text: /Bash/ }))?.text).toBe('  Bash ×4 <$0.01')
+    expect((await ui.find({ type: 'Text', text: /firecrawl/ }))?.text).toBe('  firecrawl ×6 20% ctx 6.0k ~0.4pp5h')
+    expect((await ui.find({ type: 'Text', text: /Explore/ }))?.text).toBe('  Explore ×1 50% ~1.0pp5h')
+    expect((await ui.find({ type: 'Text', text: /Bash/ }))?.text).toBe('  Bash ×4 <1% ~<0.1pp5h')
+    expect((await ui.find({ type: 'Text', text: /attributed/ }))?.text).toBe(
+      'attributed 75% of 20.0k units · 5h +2.0 pp · 7d +0.5 pp (est.)',
+    )
+    expect(await ui.find({ type: 'Text', text: /\$/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /^Skills$/ })).toBeUndefined()
     await ui.unmount()
   }
@@ -204,10 +234,24 @@ test('a truncated report is reported, not parsed', async ($, on) => {
   await ui.unmount()
 })
 
-test('formatCost and summarize', () => {
-  expect(formatCost(undefined)).toBe('—')
-  expect(formatCost(0.004)).toBe('<$0.01')
-  expect(formatCost(0.125)).toBe('$0.13')
+test('formatters match the CLI formats', () => {
+  expect(formatShare(0)).toBe('0%')
+  expect(formatShare(0.004)).toBe('<1%')
+  expect(formatShare(0.184)).toBe('18%')
+  expect(formatUnits(780)).toBe('780')
+  expect(formatUnits(23790)).toBe('23.8k')
+  expect(formatUnits(1_200_000)).toBe('1.2M')
+  expect(formatPoints(0)).toBe('0.0')
+  expect(formatPoints(0.04)).toBe('<0.1')
+  expect(formatPoints(0.44)).toBe('0.4')
+  expect(formatWindows({ fiveHour: 2 })).toBe('5h +2.0 pp · 7d —')
+})
+
+test('summarize ranks by weighted units; totals omit the window without a baseline', () => {
   expect(summarize({ ...REPORT, items: [] })).toBe('tooltrail: no tools yet')
-  expect(summarize(REPORT)).toBe('tooltrail: Explore×1 $0.80 · firecrawl×6 $0.30 · Bash×4 <$0.01')
+  expect(summarize(REPORT)).toBe('tooltrail: Explore×1 50% · firecrawl×6 20% · Bash×4 <1%')
+  expect(describeTotals({ ...REPORT, windowDelta: undefined })).toBe('attributed 75% of 20.0k units')
+  expect(describeTotals({ ...REPORT, sessionWeighted: 0, attributedWeighted: 0 })).toBe(
+    'attributed 0% of 0 units · 5h +2.0 pp · 7d +0.5 pp (est.)',
+  )
 })

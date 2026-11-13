@@ -17,6 +17,8 @@ public struct ReportRequest: Sendable {
     public let settingsJSON: URL?
     public let projectPath: String?
     public let loadedList: URL?
+    /// Directory holding `<sessionId>.windows.json` (see ``WindowBaseline``); `nil` reads none.
+    public let windowsDirectory: URL?
 
     public init(transcript: URL,
                 cacheDirectory: URL?,
@@ -24,7 +26,8 @@ public struct ReportRequest: Sendable {
                 claudeJSON: URL?,
                 settingsJSON: URL?,
                 projectPath: String?,
-                loadedList: URL?) {
+                loadedList: URL?,
+                windowsDirectory: URL? = nil) {
         self.transcript = transcript
         self.cacheDirectory = cacheDirectory
         self.pricesOverride = pricesOverride
@@ -32,9 +35,10 @@ public struct ReportRequest: Sendable {
         self.settingsJSON = settingsJSON
         self.projectPath = projectPath
         self.loadedList = loadedList
+        self.windowsDirectory = windowsDirectory
     }
 
-    /// Loads the session, prices and inventory, and builds the report.
+    /// Loads the session, prices, inventory and window baseline, and builds the report.
     public func run(now: Date = .now) throws -> SessionReport {
         let session = try SessionLoader(cacheDirectory: cacheDirectory).load(transcript: transcript)
         let prices = try PriceTable.load(override: pricesOverride)
@@ -42,6 +46,11 @@ public struct ReportRequest: Sendable {
                                                  settingsJSON: settingsJSON,
                                                  projectPath: projectPath,
                                                  loadedList: loadedList)
-        return ReportBuilder(prices: prices).build(session, inventory: inventory, now: now)
+        let windows = windowsDirectory.flatMap { directory in
+            WindowBaseline.isSafe(session.sessionId)
+                ? WindowBaseline.load(from: WindowBaseline.url(in: directory, sessionId: session.sessionId))
+                : nil
+        }
+        return ReportBuilder(prices: prices).build(session, inventory: inventory, windows: windows, now: now)
     }
 }
