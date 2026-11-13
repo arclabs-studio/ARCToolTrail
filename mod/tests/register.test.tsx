@@ -110,6 +110,25 @@ test('Sugerir limpieza lists what was loaded and never used', async ($, on) => {
   await ui.unmount()
 })
 
+test('each button has a one-letter hotkey shown in its label', async ($, on) => {
+  const clock = mock.clock(on)
+  engine(on, () => ({ exitCode: 0, stdout: JSON.stringify(REPORT), stderr: '' }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await clock.advance(2000)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  for (const [key, hotkey, label] of [
+    ['note', 'n', 'n: Nota Obsidian'],
+    ['export', 'e', 'e: Exportar JSON'],
+    ['cleanup', 'c', 'c: Sugerir limpieza'],
+  ]) {
+    const button = await ui.find({ type: 'Button', key })
+    expect(button?.props.hotkey).toBe(hotkey)
+    expect(button?.text).toBe(label)
+  }
+  await ui.unmount()
+})
+
 test('a CLI failure is shown instead of a report', async ($, on) => {
   const clock = mock.clock(on)
   engine(on, () => ({ exitCode: 1, stdout: '', stderr: 'Error: no transcript for session sid-1\n' }))
