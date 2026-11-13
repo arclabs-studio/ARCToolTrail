@@ -9,7 +9,8 @@ specific to ARCToolTrail.
 ## Project Overview
 
 ARCToolTrail shows which skills, MCP servers, plugins, subagents and built-in tools a Claude
-Code session used, and roughly what each one cost, live and at the end of the session.
+Code session used, and how much of the session's tokens and of the 5-hour and 7-day usage
+windows each one took (USD as secondary data), live and at the end of the session.
 
 It has two parts:
 
@@ -49,15 +50,16 @@ ARCToolTrail/
 ├── Sources/
 │   ├── ARCToolTrailCore/
 │   │   ├── Model/                    value types (ToolUse, APICall, TokenUsage, SessionReport…)
-│   │   ├── Parsing/                  TranscriptParser, Record* DTOs, SessionLoader (cache)
+│   │   ├── Parsing/                  TranscriptParser, Record* DTOs, Statusline* DTOs, SessionLoader (cache)
 │   │   ├── Classification/           ToolClassifier
 │   │   ├── Attribution/              CostAttributor
-│   │   ├── Pricing/                  PriceTable, ModelPrice, BundledPrices (built-in table)
+│   │   ├── Pricing/                  PriceTable, ModelPrice, BundledPrices (built-in table), TokenWeights
+│   │   ├── Cache/                    WindowBaseline, WindowTrack (<session>.windows.json)
 │   │   ├── Report/                   ReportBuilder, Tally, Pricing, ReportRequest
 │   │   ├── Cleanup/                  ConfigInventory (~/.claude.json, settings.json)
 │   │   ├── Session/                  SessionLocator (+ error)
 │   │   ├── Files/                    ReportFiles (note name, default export path)
-│   │   └── Rendering/                Text, Statusline, MarkdownNote, ReportJSON
+│   │   └── Rendering/                Text, Statusline, MarkdownNote, ReportJSON, UsageFormat, UsageSummary
 │   └── tooltrail/                    @main CLI: report, statusline, note, export
 ├── Tests/ARCToolTrailCoreTests/
 │   ├── Support/                      fixture loading, SampleSession builders
@@ -126,8 +128,20 @@ These are the facts the code relies on. Read them before changing parsing or cos
 - A tool use gets `output / n` of the response that emitted it, plus
   `(input + cacheWrite5m + cacheWrite1h) / n` of the next request (`n` = tool uses sharing it).
 - Cache reads are never attributed, so the attributed total is always below the session total.
-- A subagent's whole transcript cost goes to its `Agent` tool use; tools inside it are counted
-  but carry no cost.
+- A subagent's transcript tokens, minus cache reads (as on the main thread), go to its `Agent`
+  tool use; its cache reads go to that item's `contextCarry`. Tools inside it are counted but
+  carry no tokens.
+- Weighted units (`TokenWeights`): 1 unit = 1 input token of the same model, other token types
+  weighted by their list-price ratio to input. A price proxy for the plan limits, not their
+  real accounting. `sessionShare = weighted / sessionWeighted` (every call, subagents included).
+- Context carry: a result's added tokens × later calls before the next `compact_boundary`
+  (`{"type":"system","subtype":"compact_boundary"}`; `ParsedSession.compactions` holds the index
+  of the first call after each).
+- Window points: only the statusline JSON carries `rate_limits` (`used_percentage` +
+  `resets_at`, no absolute tokens). `tooltrail statusline` records them per session in
+  `<cache>/<session>.windows.json` (`WindowBaseline`); a later `resets_at` banks the segment and
+  restarts at 0. Item points = session delta × `sessionShare`, an upper bound when sessions run
+  in parallel.
 - Prices come from `Pricing/BundledPrices.swift`, a JSON table in a raw string (USD per million
   tokens, with `asOf` and `source`), overridable by `~/.config/tooltrail/prices.json`. It is
   compiled in, not a resource, so the binary is one self-contained file: do not move it back into
@@ -158,8 +172,8 @@ These are the facts the code relies on. Read them before changing parsing or cos
 - `runCLI` must stay a top-level function taking `$`; `claude plugin validate` rejects `$`
   passed to a nested helper. `tool.call` hooks must stay non-gating.
 - The mod sets no status entry: the statusline line (`tooltrail statusline`) already shows
-  the costs, and both together repeat the same text.
-- The pane's view atom has a `shape` tag (`view-1`). Change the tag whenever `TrailView`
+  the shares, and both together repeat the same text. The pane shows no USD.
+- The pane's view atom has a `shape` tag (`view-2`). Change the tag whenever `TrailView`
   changes.
 - In mod tests a throwing hook is skipped; simulate a failing `process.run` with `{ deny }`.
 - The mod reads the CLI's JSON (`types/index.d.ts` mirrors `ReportJSON`). A change to the JSON
@@ -175,7 +189,9 @@ These are the facts the code relies on. Read them before changing parsing or cos
 - Fixtures are **synthetic**. This is a public repository: never copy real transcript data
   into it, anonymised or not. Build new fixtures that reproduce real record shapes.
 - `synthetic-session` holds four API calls (`msg_A`–`msg_D`), a `cost-state` (total 0.2:
-  opus 0.15, sonnet 0.05) and one subagent (`agent-a1`, `toolUseId` `toolu_B1`, `Explore`).
+  opus 0.15, sonnet 0.05), one `compact_boundary` before `msg_D` (compactions `[3]`) and one
+  subagent (`agent-a1`, `toolUseId` `toolu_B1`, `Explore`). `statusline-input.json` is a
+  synthetic statusline payload with `rate_limits` and `context_window`.
   Tests assert on these numbers; changing the fixture means changing the oracles on purpose.
 - Do not add a `.swift-version` file: SwiftFormat then rewrites test function names into raw
   identifiers.
