@@ -10,8 +10,8 @@ import ArgumentParser
 @main
 struct ToolTrail: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "tooltrail",
-                                                    abstract: "Per-tool usage and estimated cost of a Claude Code "
-                                                        + "session.",
+                                                    abstract: "Per-tool share of a Claude Code session's tokens "
+                                                        + "and rate-limit windows.",
                                                     version: "0.1.2",
                                                     subcommands: [ReportCommand.self,
                                                                   StatuslineCommand.self,
