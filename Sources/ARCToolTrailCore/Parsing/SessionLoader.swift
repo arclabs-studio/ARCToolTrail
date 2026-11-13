@@ -33,7 +33,8 @@ public struct SessionLoader: Sendable {
         return ParsedSession(sessionId: main.sessionId ?? sessionDirectory.lastPathComponent,
                              calls: main.calls,
                              subagents: subagents,
-                             costState: main.costState)
+                             costState: main.costState,
+                             compactions: main.compactions)
     }
 
     // MARK: - Private

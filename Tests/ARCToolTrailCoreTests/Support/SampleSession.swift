@@ -11,6 +11,8 @@ import Foundation
 /// Hand-built mirror of `Fixtures/synthetic-session`, written from the fixture numbers and not from
 /// parser output. 2026-11-11T09:00:00Z = 1_794_387_600 (checked with `date -u -r`).
 ///
+/// The fixture holds one compact_boundary before msg_D, so `compactions` is `[3]`.
+///
 /// Price-table costs per token, opus-5-5: input 4e-6, output 20e-6, cache read 0.2e-6,
 /// cache write 5m 5e-6, cache write 1h 8e-6. Sonnet-5-5: 2e-6, 10e-6, 0.1e-6, 2.5e-6, 4e-6.
 enum SampleSession {
@@ -67,6 +69,7 @@ enum SampleSession {
                                         calls: [msgS1, msgS2])
 
     static func make(costState: CostState? = SampleSession.costState) -> ParsedSession {
-        ParsedSession(sessionId: sessionId, calls: mainCalls, subagents: [explore], costState: costState)
+        ParsedSession(sessionId: sessionId, calls: mainCalls, subagents: [explore], costState: costState,
+                      compactions: [3])
     }
 }
