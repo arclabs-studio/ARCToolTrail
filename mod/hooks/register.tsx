@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { TrailCategory, TrailItem, TrailReport, TrailView } from '../types'
+import type { TrailCategory, TrailItem, TrailReport, TrailView, TrailWindows } from '../types'
 
 const PANE = 'tooltrail'
 const TITLE = 'Session tools'
@@ -20,23 +20,57 @@ const CATEGORIES: readonly { id: TrailCategory; title: string }[] = [
 const view = atom(
   { plugin: 'arc-tooltrail', key: 'view' } as const,
   { report: null, message: '', showCleanup: false } as TrailView,
-  { shape: 'view-1' },
+  { shape: 'view-2' },
 )
 
-/** `$0.12`, `<$0.01`, or `—` when unknown. */
-export function formatCost(usd: number | undefined): string {
-  if (usd === undefined) return '—'
-  if (usd < 0.01) return '<$0.01'
-  return `$${usd.toFixed(2)}`
+/** A 0–1 share as `18%`; `<1%` below half a percent, `0%` at zero (same as the CLI). */
+export function formatShare(share: number): string {
+  if (share <= 0) return '0%'
+  if (share < 0.005) return '<1%'
+  return `${Math.round(share * 100)}%`
 }
 
-/** One-line summary for the session-end log: top three items by cost. */
+/** Token counts: `780`, `8.0k`, `1.2M`. */
+export function formatUnits(value: number): string {
+  if (value < 1000) return `${Math.round(value)}`
+  if (value < 1_000_000) return `${(value / 1000).toFixed(1)}k`
+  return `${(value / 1_000_000).toFixed(1)}M`
+}
+
+/** Percentage points with one decimal: `0.0` at zero, `<0.1` above zero but below 0.05 (same as the CLI). */
+export function formatPoints(points: number): string {
+  return points > 0 && points < 0.05 ? '<0.1' : Math.max(0, points).toFixed(1)
+}
+
+/** `5h +2.0 pp · 7d +0.5 pp`, with `—` for a window not seen. */
+export function formatWindows(windows: TrailWindows): string {
+  const part = (points: number | undefined) => (points === undefined ? '—' : `+${formatPoints(points)} pp`)
+  return `5h ${part(windows.fiveHour)} · 7d ${part(windows.sevenDay)}`
+}
+
+/** One pane row: `name ×uses share`, then context carry and 5-hour window points when above zero. */
+export function describeItem(item: TrailItem): string {
+  let row = `${item.identity.name} ×${item.uses} ${formatShare(item.sessionShare)}`
+  if (item.contextCarry > 0) row += ` ctx ${formatUnits(item.contextCarry)}`
+  const fiveHour = item.windowPoints?.fiveHour
+  if (fiveHour !== undefined && fiveHour > 0) row += ` ~${formatPoints(fiveHour)}pp5h`
+  return row
+}
+
+/** `attributed 84% of 23.8k units`, plus the session's window use when known. */
+export function describeTotals(report: TrailReport): string {
+  const attributed = report.sessionWeighted > 0 ? report.attributedWeighted / report.sessionWeighted : 0
+  const totals = `attributed ${formatShare(attributed)} of ${formatUnits(report.sessionWeighted)} units`
+  return report.windowDelta === undefined ? totals : `${totals} · ${formatWindows(report.windowDelta)} (est.)`
+}
+
+/** One-line summary for the session-end log: top three items by weighted units. */
 export function summarize(report: TrailReport): string {
   if (report.items.length === 0) return 'tooltrail: no tools yet'
   const top = [...report.items]
-    .sort((a, b) => (b.estimatedCostUSD ?? 0) - (a.estimatedCostUSD ?? 0) || b.uses - a.uses)
+    .sort((a, b) => b.weighted - a.weighted || b.uses - a.uses)
     .slice(0, 3)
-    .map(item => `${item.identity.name}×${item.uses} ${formatCost(item.estimatedCostUSD)}`)
+    .map(item => `${item.identity.name}×${item.uses} ${formatShare(item.sessionShare)}`)
   return `tooltrail: ${top.join(' · ')}`
 }
 
@@ -65,7 +99,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'tooltrail',
-      description: 'Show the skills, MCP tools, plugins and subagents this session used, with estimated cost',
+      description: 'Show the skills, MCP tools, plugins and subagents this session used, with their share of its tokens',
     })
 
     const fail = async (message: string) => {
@@ -121,7 +155,7 @@ export const register: Register = (on, options) => {
 
   on('session.end', async ($, e, next) => {
     const state = await read($, view)
-    if (state.report !== null) $.ui.log(`${summarize(state.report)} · session ${formatCost(state.report.sessionCostUSD)}`)
+    if (state.report !== null) $.ui.log(`${summarize(state.report)} · ${describeTotals(state.report)}`)
     return next(e)
   })
 
@@ -157,17 +191,12 @@ export const register: Register = (on, options) => {
               {itemsIn(report, category.id).map(item => (
                 <Text key={`${category.id}:${item.identity.name}`}>
                   {'  '}
-                  {item.identity.name} ×{item.uses} {formatCost(item.estimatedCostUSD)}
+                  {describeItem(item)}
                 </Text>
               ))}
             </Box>
           ))}
-        {report !== null && (
-          <Text dimColor>
-            attributed {formatCost(report.attributedCostUSD)} of {formatCost(report.sessionCostUSD)} (
-            {report.costSource})
-          </Text>
-        )}
+        {report !== null && <Text dimColor>{describeTotals(report)}</Text>}
         {state.showCleanup && report !== null && (
           <Box flexDirection="column">
             <Text bold>Loaded, never used</Text>
