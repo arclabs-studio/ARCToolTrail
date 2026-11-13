@@ -18,28 +18,53 @@ enum ReportFactory {
                      cost: Double?,
                      plugin: String? = nil,
                      server: String? = nil,
-                     isConnector: Bool = false) -> ReportItem {
+                     isConnector: Bool = false,
+                     usesInSubagents: Int = 0,
+                     weighted: Double = 0,
+                     sessionShare: Double = 0,
+                     weightedPerUse: Double = 0,
+                     contextCarry: Double = 0,
+                     liveContextTokens: Double = 0,
+                     liveContextShare: Double? = nil,
+                     windowPoints: WindowDelta? = nil) -> ReportItem {
         ReportItem(identity: ToolIdentity(category: category, name: name, plugin: plugin, server: server,
                                           isConnector: isConnector),
                    uses: uses,
-                   usesInSubagents: 0,
+                   usesInSubagents: usesInSubagents,
                    firstUse: generatedAt,
                    lastUse: generatedAt,
                    attributedTokens: TokenUsage(input: 1, output: 2),
-                   estimatedCostUSD: cost)
+                   estimatedCostUSD: cost,
+                   weighted: weighted,
+                   sessionShare: sessionShare,
+                   weightedPerUse: weightedPerUse,
+                   contextCarry: contextCarry,
+                   liveContextTokens: liveContextTokens,
+                   liveContextShare: liveContextShare,
+                   windowPoints: windowPoints)
     }
 
     static func report(items: [ReportItem],
                        session: Double? = 0.2,
                        attributed: Double? = 0.1,
                        source: CostSource = .costState,
-                       cleanup: [CleanupCandidate] = []) -> SessionReport {
+                       cleanup: [CleanupCandidate] = [],
+                       sessionTokens: TokenUsage = .zero,
+                       sessionWeighted: Double = 0,
+                       attributedWeighted: Double = 0,
+                       windowDelta: WindowDelta? = nil,
+                       contextWindowSize: Int? = nil) -> SessionReport {
         SessionReport(sessionId: "sess-123",
                       generatedAt: generatedAt,
                       items: items,
                       sessionCostUSD: session,
                       attributedCostUSD: attributed,
                       costSource: source,
-                      cleanup: cleanup)
+                      cleanup: cleanup,
+                      sessionTokens: sessionTokens,
+                      sessionWeighted: sessionWeighted,
+                      attributedWeighted: attributedWeighted,
+                      windowDelta: windowDelta,
+                      contextWindowSize: contextWindowSize)
     }
 }
