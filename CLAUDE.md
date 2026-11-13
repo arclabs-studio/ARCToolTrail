@@ -166,6 +166,7 @@ These are the facts the code relies on. Read them before changing parsing or cos
   shape needs both sides updated in the same PR.
 - Button labels are in Spanish (`Nota Obsidian`, `Exportar JSON`, `Sugerir limpieza`); the
   rest of the UI is English.
+- Each button has a one-letter `hotkey` (`n`, `e`, `c`), also written at the start of its label.
 
 ---
 

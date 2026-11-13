@@ -97,6 +97,9 @@ cached in `~/.cache/tooltrail/`, so a refresh takes a few tens of milliseconds.
   estimated cost. It refreshes after tool calls and turns.
 - **Nota Obsidian** writes the note, **Exportar JSON** writes the JSON file, and
   **Sugerir limpieza** lists configured MCP servers and plugins that the session never used.
+- To use the buttons from the keyboard, press `ctrl+x` `Tab` to give the pane the keyboard, then
+  `n`, `e` or `c` (or `Tab` to a button and Enter). `Esc` returns to the prompt. Clicks work in
+  fullscreen mode.
 - When the session ends, a summary line with the three most expensive tools is logged. For live
   costs under the prompt, use the [statusline](#statusline) line.
 

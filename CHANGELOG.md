@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Pane buttons have hotkeys: `n` Nota Obsidian, `e` Exportar JSON, `c` Sugerir limpieza. They
+  work once the pane holds the keyboard (`ctrl+x` `Tab`).
+
 ## [0.1.2] - 2026-11-11
 
 ### Changed

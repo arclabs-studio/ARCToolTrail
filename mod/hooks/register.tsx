@@ -181,14 +181,15 @@ export const register: Register = (on, options) => {
           </Box>
         )}
         <Box flexDirection="row">
-          <Button key="note" onPress={act(['note', ...vaultArgs], 'Note written:')}>
-            Nota Obsidian
+          {/* Hotkeys work once the pane holds the keyboard (ctrl+x tab, or a click in fullscreen). */}
+          <Button key="note" hotkey="n" onPress={act(['note', ...vaultArgs], 'Note written:')}>
+            n: Nota Obsidian
           </Button>
-          <Button key="export" onPress={act(['export'], 'Exported:')}>
-            Exportar JSON
+          <Button key="export" hotkey="e" onPress={act(['export'], 'Exported:')}>
+            e: Exportar JSON
           </Button>
-          <Button key="cleanup" onPress={toggleCleanup}>
-            Sugerir limpieza
+          <Button key="cleanup" hotkey="c" onPress={toggleCleanup}>
+            c: Sugerir limpieza
           </Button>
         </Box>
         {state.message !== '' && <Text dimColor>{state.message}</Text>}
